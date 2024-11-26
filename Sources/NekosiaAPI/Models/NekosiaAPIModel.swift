@@ -12,7 +12,7 @@ public struct NekosiaImageItemModel: Decodable, Equatable {
     public let metadata: NekosiaMetadataModel
     public let category: String
     public let tags: [String]
-    public let rating: String
+    public let rating: NekosiaRatingType
     public let anime: NekosiaAnimeModel
     public let source: NekosiaSourceModel
     public let attribution: NekosiaAttributionModel
@@ -43,6 +43,31 @@ public struct NekosiaMetadataDataModel: Decodable, Equatable {
     public let height: Int
     public let size: Int
     public let `extension`: String
+}
+
+public enum NekosiaRatingType: Decodable, Equatable {
+    case string(String)
+    case model(NekosiaRatingModel)
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let string = try? container.decode(String.self) {
+            self = .string(string)
+            return
+        }
+        let model = try container.decode(NekosiaRatingModel.self)
+        self = .model(model)
+    }
+}
+
+public struct NekosiaRatingModel: Decodable, Equatable {
+    public let rating: String
+    public let available: Bool
+    public let neutral: Double
+    public let drawing: Double
+    public let sexy: Double
+    public let porn: Double
+    public let hentai: Double
 }
 
 public struct NekosiaAnimeModel: Decodable, Equatable {

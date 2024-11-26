@@ -91,7 +91,12 @@ public final class NekosiaAPI: NekosiaAPIServicing {
             path: "/images/\(category)",
             parameters: query?.parameters
         )
-        return try await makeRequest(endpoint: endpoint)
+        if let query = query, query.contains(.count(1)) {
+            let image: NekosiaImageItemModel = try await makeRequest(endpoint: endpoint)
+            return NekosiaAPIModel(count: 1, images: [image])
+        } else {
+            return try await makeRequest(endpoint: endpoint)
+        }
     }
 
     @available(iOS 13, macOS 10.15, *)
@@ -118,7 +123,15 @@ public final class NekosiaAPI: NekosiaAPIServicing {
             path: "/images/\(category)",
             parameters: query?.parameters
         )
-        return makeRequest(endpoint: endpoint, completion: completion)
+        if let query = query, query.contains(.count(1)) {
+            let newCompletion: ImageCompletion = { result in
+                let newResult = result.map({ NekosiaAPIModel(count: 1, images: [$0]) })
+                completion(newResult)
+            }
+            return makeRequest(endpoint: endpoint, completion: newCompletion)
+        } else {
+            return makeRequest(endpoint: endpoint, completion: completion)
+        }
     }
 
     @discardableResult
