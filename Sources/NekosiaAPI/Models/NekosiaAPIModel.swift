@@ -3,6 +3,20 @@ import Foundation
 public struct NekosiaAPIModel: Decodable, Equatable {
     public let count: Int
     public let images: [NekosiaImageItemModel]
+
+    enum CodingKeys: String, CodingKey {
+        case count, images
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.count = try container.decode(Int.self, forKey: .count)
+        if let image = try? NekosiaImageItemModel(from: decoder) {
+            self.images = [image]
+            return
+        }
+        self.images = try container.decode([NekosiaImageItemModel].self, forKey: .images)
+    }
 }
 
 public struct NekosiaImageItemModel: Decodable, Equatable {
