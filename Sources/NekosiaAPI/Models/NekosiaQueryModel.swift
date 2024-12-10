@@ -15,7 +15,7 @@ public enum NekosiaQueryModel: Hashable, Equatable {
 }
 
 extension Set where Element == NekosiaQueryModel {
-    var parameters: [String: String] {
+    internal var parameters: [String: String] {
         var parameters: [String: String] = [:]
         for element in self {
             switch element {
