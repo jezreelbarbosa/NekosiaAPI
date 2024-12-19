@@ -3,19 +3,24 @@ import Foundation
 // MARK: -
 
 public protocol NekosiaAPIServicing {
+    var isLoggerEnabled: Bool { get set }
+
+    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
+    func fetchImages(category: String, query: Set<NekosiaQueryModel>?) async throws -> NekosiaAPIModel
+    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
+    func fetchById(_ id: String) async throws -> NekosiaImageItemModel
+
     typealias ImagesCompletion = (Result<NekosiaAPIModel, NekosiaAPIError>) -> Void
     typealias ImageCompletion = (Result<NekosiaImageItemModel, NekosiaAPIError>) -> Void
 
-    @discardableResult func fetchImages(category: String, completion: @escaping ImagesCompletion) -> URLSessionDataTask?
-    @discardableResult func fetchShadowImages(query: Set<NekosiaQueryModel>, completion: @escaping ImagesCompletion) -> URLSessionDataTask?
-    @discardableResult func fetchImages(category: String, query: Set<NekosiaQueryModel>?, completion: @escaping ImagesCompletion) -> URLSessionDataTask?
-    @discardableResult func fetchById(_ id: String, completion: @escaping ImageCompletion) -> URLSessionDataTask?
+    @discardableResult func fetchImages(category: String, query: Set<NekosiaQueryModel>?, completion: ImagesCompletion?) -> URLSessionDataTask?
+    @discardableResult func fetchById(_ id: String, completion: ImageCompletion?) -> URLSessionDataTask?
 }
 
 // MARK: -
 
 @available(macOS 10.13, *)
-public final class NekosiaAPI: NekosiaAPIServicing {
+public final class NekosiaAPI {
     // Static Properties
 
     public static let shared = NekosiaAPI()
@@ -24,6 +29,11 @@ public final class NekosiaAPI: NekosiaAPIServicing {
 
     internal var dispacher: Dispatching
     internal let jsonDecoder: JSONDecoder
+
+    public var isLoggerEnabled: Bool {
+        get { return dispacher.isLoggerEnabled }
+        set { dispacher.isLoggerEnabled = newValue }
+    }
 
     // Lifecycle
 
@@ -57,19 +67,20 @@ public final class NekosiaAPI: NekosiaAPIServicing {
         return model
     }
 
+    internal typealias GenericCompletion<T> = ((Result<T, NekosiaAPIError>) -> Void)
     @discardableResult
-    internal func makeRequest<T: Decodable>(endpoint: Endpointing, completion: @escaping (Result<T, NekosiaAPIError>) -> Void) -> URLSessionDataTask? {
+    internal func makeRequest<T: Decodable>(endpoint: Endpointing, completion: GenericCompletion<T>?) -> URLSessionDataTask? {
         let task = dispacher.call(endpoint: endpoint) { [weak self] result in
             guard let self = self else { return }
             let decodedResult: Result<T, NekosiaAPIError> = self.handleResult(result)
-            completion(decodedResult)
+            completion?(decodedResult)
         }
         return task
     }
 
     // Supponting Functions
 
-    internal func handleResult<T: Decodable>(_ result: Result<DispatcherResponse, NekosiaAPIError>) -> Result<T, NekosiaAPIError> {
+    internal func handleResult<T: Decodable>(_ result: DispatcherResult) -> Result<T, NekosiaAPIError> {
         switch result {
         case let .success((data, response)):
             do {
@@ -89,47 +100,10 @@ public final class NekosiaAPI: NekosiaAPIServicing {
     }
 }
 
-// MARK: - Completion Functions
+// MARK: - NekosiaAPIServicing Implementation
 
-public extension NekosiaAPI {
-    @discardableResult
-    func fetchImages(category: String, completion: @escaping ImagesCompletion) -> URLSessionDataTask? {
-        return fetchImages(category: category, query: nil, completion: completion)
-    }
-
-    @discardableResult
-    func fetchShadowImages(query: Set<NekosiaQueryModel>, completion: @escaping ImagesCompletion) -> URLSessionDataTask? {
-        return fetchImages(category: "nothing", query: query, completion: completion)
-    }
-
-    @discardableResult
-    func fetchImages(category: String, query: Set<NekosiaQueryModel>?, completion: @escaping ImagesCompletion) -> URLSessionDataTask? {
-        let endpoint = NekosiaEndpoint(
-            path: "/images/\(category)",
-            parameters: query?.parameters
-        )
-        return makeRequest(endpoint: endpoint, completion: completion)
-    }
-
-    @discardableResult
-    func fetchById(_ id: String, completion: @escaping ImageCompletion) -> URLSessionDataTask? {
-        let endpoint = NekosiaEndpoint(path: "/getImageById/\(id)")
-        return makeRequest(endpoint: endpoint, completion: completion)
-    }
-}
-
-// MARK: - Async Functions
-
-@available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
-extension NekosiaAPI {
-    public func fetchImages(category: String) async throws -> NekosiaAPIModel {
-        return try await fetchImages(category: category, query: nil)
-    }
-
-    public func fetchShadowImages(query: Set<NekosiaQueryModel>) async throws -> NekosiaAPIModel {
-        return try await fetchImages(category: "nothing", query: query)
-    }
-
+extension NekosiaAPI: NekosiaAPIServicing {
+    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     public func fetchImages(category: String, query: Set<NekosiaQueryModel>?) async throws -> NekosiaAPIModel {
         let endpoint = NekosiaEndpoint(
             path: "/images/\(category)",
@@ -138,9 +112,52 @@ extension NekosiaAPI {
         return try await makeRequest(endpoint: endpoint)
     }
 
+    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     public func fetchById(_ id: String) async throws -> NekosiaImageItemModel {
         let endpoint = NekosiaEndpoint(path: "/getImageById/\(id)")
         return try await makeRequest(endpoint: endpoint)
+    }
+
+    @discardableResult
+    public func fetchImages(category: String, query: Set<NekosiaQueryModel>?, completion: ImagesCompletion?) -> URLSessionDataTask? {
+        let endpoint = NekosiaEndpoint(
+            path: "/images/\(category)",
+            parameters: query?.parameters
+        )
+        return makeRequest(endpoint: endpoint, completion: completion)
+    }
+
+    @discardableResult
+    public func fetchById(_ id: String, completion: ImageCompletion?) -> URLSessionDataTask? {
+        let endpoint = NekosiaEndpoint(path: "/getImageById/\(id)")
+        return makeRequest(endpoint: endpoint, completion: completion)
+    }
+}
+
+// MARK: - Async Functions
+
+@available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
+public extension NekosiaAPIServicing {
+    func fetchImages(category: String) async throws -> NekosiaAPIModel {
+        return try await fetchImages(category: category, query: nil)
+    }
+
+    func fetchShadowImages(query: Set<NekosiaQueryModel>) async throws -> NekosiaAPIModel {
+        return try await fetchImages(category: "nothing", query: query)
+    }
+}
+
+// MARK: - Completion functions
+
+public extension NekosiaAPIServicing {
+    @discardableResult
+    func fetchImages(category: String, completion: ImagesCompletion?) -> URLSessionDataTask? {
+        return fetchImages(category: category, query: nil, completion: completion)
+    }
+
+    @discardableResult
+    func fetchShadowImages(query: Set<NekosiaQueryModel>, completion: ImagesCompletion?) -> URLSessionDataTask? {
+        return fetchImages(category: "nothing", query: query, completion: completion)
     }
 }
 
@@ -189,11 +206,3 @@ public extension NekosiaAPIServicing {
     }
 }
 
-// MARK: - Logger Helper
-
-extension NekosiaAPI {
-    public var isLoggerEnabled: Bool {
-        get { return dispacher.isLoggerEnabled }
-        set { dispacher.isLoggerEnabled = newValue }
-    }
-}

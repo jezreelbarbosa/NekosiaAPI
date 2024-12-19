@@ -1,7 +1,8 @@
 import Foundation
 
 internal typealias DispatcherResponse = (data: Data, response: HTTPURLResponse)
-internal typealias DispatcherCompletion = (Result<DispatcherResponse, NekosiaAPIError>) -> Void
+internal typealias DispatcherResult = Result<DispatcherResponse, NekosiaAPIError>
+internal typealias DispatcherCompletion = (DispatcherResult) -> Void
 
 internal protocol Dispatching {
     var isLoggerEnabled: Bool { get set }

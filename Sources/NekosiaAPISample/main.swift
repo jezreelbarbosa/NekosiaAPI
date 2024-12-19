@@ -2,7 +2,7 @@ import Foundation
 import NekosiaAPI
 
 let tags: [String] = Array(NekosiaAPI.tags.shuffled().prefix(3))
-let nekosiaAPI = NekosiaAPI.shared
+let nekosiaAPI: NekosiaAPIServicing = NekosiaAPI()
 nekosiaAPI.isLoggerEnabled = true
 
 if #available(iOS 13.0, macOS 10.15, watchOS 6, tvOS 13.0, *) {
