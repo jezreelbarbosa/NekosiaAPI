@@ -4,7 +4,9 @@ internal typealias DispatcherResponse = (data: Data, response: HTTPURLResponse)
 internal typealias DispatcherCompletion = (Result<DispatcherResponse, NekosiaAPIError>) -> Void
 
 internal protocol Dispatching {
-    @available(iOS 13, macOS 10.15, *) func call(endpoint: Endpointing) async throws -> DispatcherResponse
+    var isLoggerEnabled: Bool { get set }
+    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
+    func call(endpoint: Endpointing) async throws -> DispatcherResponse
     @discardableResult func call(endpoint: Endpointing, completion: @escaping DispatcherCompletion) -> URLSessionDataTask?
 }
 
@@ -12,14 +14,17 @@ internal final class Dispatcher: Dispatching {
     // Propeties
 
     internal let urlSession: URLSession
+    internal var isLoggerEnabled: Bool = true
+    internal let logger: DispatcherLogging?
 
-    internal init(urlSession: URLSession) {
+    internal init(urlSession: URLSession, logger: DispatcherLogging?) {
         self.urlSession = urlSession
+        self.logger = logger
     }
 
     // Functions
 
-    @available(iOS 13, macOS 10.15, *)
+    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     internal func call(endpoint: Endpointing) async throws -> DispatcherResponse {
         return try await withCheckedThrowingContinuation { continuation in
             call(endpoint: endpoint) { result in
@@ -63,12 +68,18 @@ internal final class Dispatcher: Dispatching {
     }
 
     internal func makeDataTask(request: URLRequest, completion: @escaping DispatcherCompletion) -> URLSessionDataTask {
-        urlSession.dataTask(with: request) { [weak self] data, response, error in
+        if isLoggerEnabled, let logger = logger {
+            logger.logRequest(request)
+        }
+        return urlSession.dataTask(with: request) { [weak self] data, response, error in
             self?.handle(data: data, response: response, error: error, completion: completion)
         }
     }
 
     internal func handle(data: Data?, response: URLResponse?, error: Error?, completion: @escaping DispatcherCompletion) {
+        if isLoggerEnabled, let logger = logger {
+            logger.logResponse(response, data: data, error: error)
+        }
         if let error = error {
             completion(.failure(.requestError(data, response, error)))
             return
