@@ -2,14 +2,7 @@ import Foundation
 
 // MARK: -
 
-public protocol NekosiaAPIServicing {
-    var isLoggerEnabled: Bool { get set }
-
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
-    func fetchImages(category: String, query: Set<NekosiaQueryModel>?) async throws -> NekosiaAPIModel
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
-    func fetchById(_ id: String) async throws -> NekosiaImageItemModel
-
+public protocol NekosiaAPIServicing: AnyObject {
     typealias ImagesCompletion = (Result<NekosiaAPIModel, NekosiaAPIError>) -> Void
     typealias ImageCompletion = (Result<NekosiaImageItemModel, NekosiaAPIError>) -> Void
 
@@ -27,13 +20,8 @@ public final class NekosiaAPI {
 
     // Object Properties
 
-    internal var dispacher: Dispatching
+    internal var dispatcher: Dispatching
     internal let jsonDecoder: JSONDecoder
-
-    public var isLoggerEnabled: Bool {
-        get { return dispacher.isLoggerEnabled }
-        set { dispacher.isLoggerEnabled = newValue }
-    }
 
     // Lifecycle
 
@@ -42,35 +30,24 @@ public final class NekosiaAPI {
         if #available(iOS 14, macOS 11, watchOS 7, tvOS 14.0, *) {
             logger = DispatcherLogger()
         }
-        let dispacher = Dispatcher(urlSession: URLSession.shared, logger: logger)
+        let dispatcher = Dispatcher(urlSession: URLSession.shared, logger: logger)
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
-        self.dispacher = dispacher
+        self.dispatcher = dispatcher
         self.jsonDecoder = decoder
     }
 
-    internal init(dispacher: Dispatching, jsonDecoder: JSONDecoder) {
-        self.dispacher = dispacher
+    internal init(dispatcher: Dispatching, jsonDecoder: JSONDecoder) {
+        self.dispatcher = dispatcher
         self.jsonDecoder = jsonDecoder
     }
 
     // Make Requests
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
-    internal func makeRequest<T: Decodable>(endpoint: Endpointing) async throws -> T {
-        let response = try await dispacher.call(endpoint: endpoint)
-        let statusModel = try jsonDecoder.decode(NekosiaStatusModel.self, from: response.data)
-        guard statusModel.success else {
-            throw NekosiaAPIError.apiMessageError(statusModel)
-        }
-        let model = try jsonDecoder.decode(T.self, from: response.data)
-        return model
-    }
-
     internal typealias GenericCompletion<T> = ((Result<T, NekosiaAPIError>) -> Void)
     @discardableResult
     internal func makeRequest<T: Decodable>(endpoint: Endpointing, completion: GenericCompletion<T>?) -> URLSessionDataTask? {
-        let task = dispacher.call(endpoint: endpoint) { [weak self] result in
+        let task = dispatcher.call(endpoint: endpoint) { [weak self] result in
             guard let self = self else { return }
             let decodedResult: Result<T, NekosiaAPIError> = self.handleResult(result)
             completion?(decodedResult)
@@ -103,21 +80,6 @@ public final class NekosiaAPI {
 // MARK: - NekosiaAPIServicing Implementation
 
 extension NekosiaAPI: NekosiaAPIServicing {
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
-    public func fetchImages(category: String, query: Set<NekosiaQueryModel>?) async throws -> NekosiaAPIModel {
-        let endpoint = NekosiaEndpoint(
-            path: "/images/\(category)",
-            parameters: query?.parameters
-        )
-        return try await makeRequest(endpoint: endpoint)
-    }
-
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
-    public func fetchById(_ id: String) async throws -> NekosiaImageItemModel {
-        let endpoint = NekosiaEndpoint(path: "/getImageById/\(id)")
-        return try await makeRequest(endpoint: endpoint)
-    }
-
     @discardableResult
     public func fetchImages(category: String, query: Set<NekosiaQueryModel>?, completion: ImagesCompletion?) -> URLSessionDataTask? {
         let endpoint = NekosiaEndpoint(
@@ -144,6 +106,32 @@ public extension NekosiaAPIServicing {
 
     func fetchShadowImages(query: Set<NekosiaQueryModel>) async throws -> NekosiaAPIModel {
         return try await fetchImages(category: "nothing", query: query)
+    }
+
+    func fetchImages(category: String, query: Set<NekosiaQueryModel>?) async throws -> NekosiaAPIModel {
+        return try await withCheckedThrowingContinuation { continuation in
+            fetchImages(category: category, query: query) { result in
+                switch result {
+                case let .success(model):
+                    continuation.resume(returning: model)
+                case let .failure(error):
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    func fetchById(_ id: String) async throws -> NekosiaImageItemModel {
+        return try await withCheckedThrowingContinuation { continuation in
+            fetchById(id) { result in
+                switch result {
+                case let .success(model):
+                    continuation.resume(returning: model)
+                case let .failure(error):
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
     }
 }
 
@@ -206,3 +194,15 @@ public extension NekosiaAPIServicing {
     }
 }
 
+// MARK: - Logger helper
+
+public extension NekosiaAPIServicing {
+    private var dispatcher: Dispatcher? {
+        return self as? Dispatcher
+    }
+
+    var isLoggerEnabled: Bool {
+        get { return dispatcher?.isLoggerEnabled ?? false }
+        set { dispatcher?.isLoggerEnabled = newValue }
+    }
+}

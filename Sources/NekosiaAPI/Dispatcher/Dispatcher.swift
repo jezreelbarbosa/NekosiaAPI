@@ -5,9 +5,6 @@ internal typealias DispatcherResult = Result<DispatcherResponse, NekosiaAPIError
 internal typealias DispatcherCompletion = (DispatcherResult) -> Void
 
 internal protocol Dispatching {
-    var isLoggerEnabled: Bool { get set }
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
-    func call(endpoint: Endpointing) async throws -> DispatcherResponse
     @discardableResult func call(endpoint: Endpointing, completion: @escaping DispatcherCompletion) -> URLSessionDataTask?
 }
 
@@ -15,6 +12,7 @@ internal final class Dispatcher: Dispatching {
     // Propeties
 
     internal let urlSession: URLSession
+
     internal var isLoggerEnabled: Bool = true
     internal let logger: DispatcherLogging?
 
@@ -24,20 +22,6 @@ internal final class Dispatcher: Dispatching {
     }
 
     // Functions
-
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
-    internal func call(endpoint: Endpointing) async throws -> DispatcherResponse {
-        return try await withCheckedThrowingContinuation { continuation in
-            call(endpoint: endpoint) { result in
-                switch result {
-                case .success(let response):
-                    continuation.resume(returning: response)
-                case .failure(let error):
-                    continuation.resume(throwing: error)
-                }
-            }
-        }
-    }
 
     @discardableResult
     internal func call(endpoint: Endpointing, completion: @escaping DispatcherCompletion) -> URLSessionDataTask? {
