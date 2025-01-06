@@ -198,3 +198,15 @@ public struct NekosiaArtistModel: Decodable, Equatable {
         self.profile = profile
     }
 }
+
+public struct NekosiaTagsModel: Decodable, Equatable {
+    public let tags: [String]
+    public let anime: [String]
+    public let characters: [String]
+
+    public init(tags: [String], anime: [String], characters: [String]) {
+        self.tags = tags
+        self.anime = anime
+        self.characters = characters
+    }
+}

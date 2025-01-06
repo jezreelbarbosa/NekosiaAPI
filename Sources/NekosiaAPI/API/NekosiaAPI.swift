@@ -5,14 +5,15 @@ import Foundation
 public protocol NekosiaAPIServicing: AnyObject {
     typealias ImagesCompletion = (Result<NekosiaAPIModel, NekosiaAPIError>) -> Void
     typealias ImageCompletion = (Result<NekosiaImageItemModel, NekosiaAPIError>) -> Void
+    typealias TagsCompletion = (Result<NekosiaTagsModel, NekosiaAPIError>) -> Void
 
     @discardableResult func fetchImages(category: String, query: Set<NekosiaQueryModel>?, completion: ImagesCompletion?) -> URLSessionDataTask?
     @discardableResult func fetchById(_ id: String, completion: ImageCompletion?) -> URLSessionDataTask?
+    @discardableResult func fetchTags(completion: TagsCompletion?) -> URLSessionDataTask?
 }
 
 // MARK: -
 
-@available(macOS 10.13, *)
 public final class NekosiaAPI {
     // Static Properties
 
@@ -94,6 +95,12 @@ extension NekosiaAPI: NekosiaAPIServicing {
         let endpoint = NekosiaEndpoint(path: "/getImageById/\(id)")
         return makeRequest(endpoint: endpoint, completion: completion)
     }
+
+    @discardableResult
+    public func fetchTags(completion: TagsCompletion?) -> URLSessionDataTask? {
+        let endpoint = NekosiaEndpoint(path: "/tags")
+        return makeRequest(endpoint: endpoint, completion: completion)
+    }
 }
 
 // MARK: - Async Functions
@@ -133,6 +140,19 @@ public extension NekosiaAPIServicing {
             }
         }
     }
+
+    func fetchTags() async throws -> NekosiaTagsModel {
+        return try await withCheckedThrowingContinuation { continuation in
+            fetchTags { result in
+                switch result {
+                case let .success(model):
+                    continuation.resume(returning: model)
+                case let .failure(error):
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
 }
 
 // MARK: - Completion functions
@@ -154,6 +174,7 @@ public extension NekosiaAPIServicing {
 public extension NekosiaAPIServicing {
     typealias ImagesSuccessCompletion = (_ model: NekosiaAPIModel) -> Void
     typealias ImageSuccessCompletion = (_ model: NekosiaImageItemModel) -> Void
+    typealias TagsSuccessCompletion = (_ model: NekosiaTagsModel) -> Void
     typealias APIErrorCompletion = (_ error: NekosiaAPIError) -> Void
 
     private func completion<T, U>(s: ((T) -> Void)?, f: ((U) -> Void)?) -> (Result<T, U>) -> Void {
@@ -191,6 +212,12 @@ public extension NekosiaAPIServicing {
                    onSuccess: ImageSuccessCompletion?,
                    onFailure: APIErrorCompletion?) -> URLSessionDataTask? {
         return fetchById(id, completion: completion(s: onSuccess, f: onFailure))
+    }
+
+    @discardableResult
+    func fetchTags(onSuccess: TagsSuccessCompletion?,
+                   onFailure: APIErrorCompletion?) -> URLSessionDataTask? {
+        return fetchTags(completion: completion(s: onSuccess, f: onFailure))
     }
 }
 
