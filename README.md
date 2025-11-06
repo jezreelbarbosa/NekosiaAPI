@@ -5,8 +5,8 @@ A simple wrapper made in swift for Nekosia API
 Check out the [official documentation](https://nekosia.cat/documentation) to learn more.
 
 ## 📦 Installation
-To install this API, use SPM (swift Package Manager)\
-In your `Package.swift` file, add this package to the dependencies list, and the package name to your target's dependencies as per the following example
+To install this API, use Swift Package Manager (SPM).\
+In your `Package.swift` file, add the package to the dependencies list and include `"NekosiaAPI"` in your target dependencies, as shown below:
 
 ```swift
 // swift-tools-version: 5.7
@@ -25,12 +25,12 @@ let package = Package(
 ```
 
 ## 🤔 How to Use?
-To use it, you do `import NekosiaAPI`\
-In dependency injection you can use the `NekosiaAPIServicing` protocol\
-To handle error cases, use the `do-catch` statement
+Import `NekosiaAPI` in the file where you'll use it.\
+For dependency injection, use the `NekosiaAPIServicing` protocol.\
+To handle errors, use `do-catch`.
 
-### Simple Example
-You can make a simple request with just one category or pass some parameters to customize the search
+### 🧪 Simple Example
+You can make a basic request by passing a category, or customize your search with parameters:
 
 ```swift
 import NekosiaAPI
@@ -50,8 +50,8 @@ Task {
 }
 ```
 
-### IP-based Sessions
-In this example, we used an IP-based session. What does this mean? Thanks to this solution, a user with a specific IP address will not encounter duplicate images when selecting them randomly.
+## 🌐 IP-based Sessions
+In this mode, each IP address receives its own session. This helps avoid repeated images when fetching randomized results.
 
 ```swift
 Task {
@@ -63,8 +63,8 @@ Task {
 }
 ```
 
-### ID-based Sessions
-You can also use `id`, but this requires providing a user identifier (e.g., from Discord). Pass this information in `id` as a string.
+### 🆔 ID-based Sessions
+You can also use a user-specific session by providing an identifier. Pass this value as a string using `.id` query.
 
 ```swift
 Task {
@@ -80,8 +80,8 @@ Task {
 }
 ```
 
-### Tags
-To get a list of tags from the api, you can simply make a `fetchTags()` request
+### 🏷️ Tags
+To get a full list of available tags, request them with:
 
 ```swift
 Task {
@@ -90,8 +90,8 @@ Task {
 }
 ```
 
-### Completion support
-It also have closure based requests
+### ✅ Completion support
+Closure-based requests are also supported:
 
 ```swift
 nekosiaAPI.fetchTags { result in
